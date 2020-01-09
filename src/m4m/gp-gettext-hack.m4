@@ -25,12 +25,14 @@ AC_DEFUN([GP_GETTEXT_HACK],
 AC_BEFORE([$0], [AM_GNU_GETTEXT])dnl
 AC_BEFORE([$0], [AM_GNU_GETTEXT_VERSION])dnl
 m4_if([$1],[],[GETTEXT_PACKAGE="${PACKAGE_TARNAME}"],[GETTEXT_PACKAGE="$1"])
-AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE], ["$GETTEXT_PACKAGE"],
-                   [The gettext domain we're using])
+# The gettext domain we're using
+AM_CPPFLAGS="$AM_CPPFLAGS -DGETTEXT_PACKAGE=\\\"${GETTEXT_PACKAGE}\\\""
 AC_SUBST([GETTEXT_PACKAGE])
 sed_cmds="s|^DOMAIN.*|DOMAIN = ${GETTEXT_PACKAGE}|"
 m4_if([$2],[],[],[sed_cmds="${sed_cmds};s|^COPYRIGHT_HOLDER.*|COPYRIGHT_HOLDER = $2|"])
 m4_ifval([$3],[
+sed_mb="$3"
+],[
 if test -n "$PACKAGE_BUGREPORT"; then
    sed_mb="${PACKAGE_BUGREPORT}"
 else
@@ -41,8 +43,6 @@ else
 ***
 ])
 fi
-],[
-sed_mb="$3"
 ])
 sed_cmds="${sed_cmds};s|^MSGID_BUGS_ADDRESS.*|MSGID_BUGS_ADDRESS = ${sed_mb}|"
 # Not so sure whether this hack is all *that* evil...
@@ -66,6 +66,10 @@ GP_CONFIG_MSG([Use translations],[${USE_NLS}])
 if test "x$USE_NLS" = "xyes" && test "${BUILD_INCLUDED_LIBINTL}"; then
    GP_CONFIG_MSG([Use included libintl],[${BUILD_INCLUDED_LIBINTL}])
 fi
+dnl We cannot use AC_DEFINE_UNQUOTED() for these definitions, as
+dnl we require make to do insert the proper $(datadir) value
+AC_SUBST([localedir], ['$(datadir)/locale'])
+AM_CPPFLAGS="$AM_CPPFLAGS -DLOCALEDIR=\\\"${localedir}\\\""
 ])
 
 dnl Please do not remove this:

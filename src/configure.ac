@@ -1,9 +1,14 @@
 AC_PREREQ(2.59)
-AC_INIT([EXIF library], [0.6.16], [libexif-devel@lists.sourceforge.net], [libexif])
+AC_INIT([EXIF library], [0.6.21], [libexif-devel@lists.sourceforge.net], [libexif])
 AC_CONFIG_SRCDIR([libexif/exif-data.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([auto-m4])
 AM_INIT_AUTOMAKE([-Wall gnu 1.9 dist-bzip2 dist-zip check-news])
+AM_MAINTAINER_MODE
+
+# Use the silent-rules feature when possible.
+m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])
+AM_SILENT_RULES([no])
 
 if test ! -d "$srcdir/m4m"; then
 AC_MSG_ERROR([
@@ -27,7 +32,7 @@ GP_CONFIG_MSG([Source code location],[${srcdir}])
 dnl ---------------------------------------------------------------------------
 dnl Advanced information about versioning:
 dnl   * "Writing shared libraries" by Mike Hearn
-dnl         http://navi.cx/~mike/writing-shared-libraries.html
+dnl         http://plan99.net/~mike/writing-shared-libraries.html
 dnl   * libtool.info chapter "Versioning"
 dnl   * libtool.info chapter "Updating library version information"
 dnl ---------------------------------------------------------------------------
@@ -50,9 +55,14 @@ dnl C:A:R
 dnl 12:0:1   0.6.13
 dnl 13:1:0   added EXIF_DATA_OPTION_DONT_CHANGE_MAKER_NOTE (for 0.6.14)
 dnl 14:2:0   added XP_ WinXP tags (for 0.6.15)
-LIBEXIF_AGE=2
-LIBEXIF_REVISION=0
-LIBEXIF_CURRENT=14
+dnl 14:2:1   0.6.17
+dnl 15:3:0   added exif_loader_get_buf (for 0.6.18)
+dnl 15:3:1   0.6.19
+dnl 15:3:2   0.6.20
+dnl 15:3:3   0.6.21
+LIBEXIF_CURRENT=15
+LIBEXIF_AGE=3
+LIBEXIF_REVISION=3
 AC_SUBST([LIBEXIF_AGE])
 AC_SUBST([LIBEXIF_REVISION])
 AC_SUBST([LIBEXIF_CURRENT])
@@ -62,6 +72,7 @@ AC_SUBST([LIBEXIF_VERSION_INFO])
 
 AC_PROG_CC
 AC_C_CONST
+AC_C_INLINE
 dnl FIXME: AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
 AM_CPPFLAGS="$CPPFLAGS"
@@ -93,31 +104,45 @@ dnl ---------------------------------------------------------------------------
 dnl Whether -lm is required for our math functions
 dnl ---------------------------------------------------------------------------
 
-# we need sqrt and pow, but checking for sqrt should be sufficient
-AC_ARG_VAR([MATHLIBS],[The libraries required for mathematical functions, e.g. -lm])
-if test "x$MATHLIBS" = "x"; then
-	# We must not compile with -Wall -Werror here:
-	# char *sqrt() conflicts with double sin(const double xx) in any case.
-	CFLAGS_save="$CFLAGS"
-	CPPFLAGS_save="$CPPFLAGS"
-	CPPFLAGS=""
-	CFLAGS=""
-	AC_CHECK_FUNC([sqrt],[
-		MATHLIBS=""
-	],[
-		AC_CHECK_LIB([m],[sqrt],[
-			MATHLIBS="-lm"
-		],[
-			AC_MSG_ERROR([
-*** Could not find sqrt() function
-])
-		])
-	])
-	CFLAGS="$CFLAGS_save"
-	CPPFLAGS="$CPPFLAGS_save"
-fi
-AC_SUBST([MATHLIBS])
+# we need sqrt and pow which may be in libm
+# We cannot use AC_CHECK_FUNC because if CFLAGS contains
+# -Wall -Werror here the check fails because
+# char *sqrt() conflicts with double sqrt(double xx)
 
+# Start by assuming -lm is needed, because it's possible that the little
+# test program below will be optimized to in-line floating point code that
+# doesn't require -lm, whereas the library itself cannot be so optimized
+# (this actually seems to be the case on x86 with gcc 4.2). Assuming the
+# reverse means that -lm could be needed but wouldn't be detected below.
+
+LIBS_orig="$LIBS"
+LIBS="$LIBS -lm"
+AC_MSG_CHECKING([for math functions in libm])
+AC_LINK_IFELSE([
+	#include <math.h>
+	int main() {
+	  double s = sqrt(0);
+	  double p = pow(s,s);
+	  return (int)p;
+	}
+], [AC_MSG_RESULT(yes)], [
+	AC_MSG_RESULT(no)
+	LIBS="$LIBS_orig"
+	AC_MSG_CHECKING([for math functions without libm])
+	AC_LINK_IFELSE([
+		#include <math.h>
+		int main() {
+		  double s = sqrt(0);
+		  double p = pow(s,s);
+		  return (int)p;
+		}
+	], [
+		AC_MSG_RESULT(yes)
+	],[
+		AC_MSG_RESULT(no)
+		AC_MSG_ERROR([*** Could not find sqrt() & pow() functions])
+	])
+])
 
 # doc support
 GP_CHECK_DOC_DIR
@@ -152,21 +177,20 @@ AM_CONDITIONAL([ENABLE_INTERNAL_DOCS], [test "x${set_enable_internal_docs}" = "x
 # ---------------------------------------------------------------------------
 # i18n support
 # ---------------------------------------------------------------------------
-ALL_LINGUAS="cs de es fr pl ru sk vi"
+ALL_LINGUAS="be bs cs da de en_AU en_CA en_GB es fr it ja nl pl pt pt_BR ru sk sq sr sv tr uk vi zh_CN"
+AM_PO_SUBDIRS
 GP_GETTEXT_HACK([${PACKAGE}-${LIBEXIF_CURRENT_MIN}],
                 [Lutz Mueller and others])
 AM_GNU_GETTEXT_VERSION([0.14.1])
 AM_GNU_GETTEXT([external])
-AM_PO_SUBDIRS()
 AM_ICONV()
 GP_GETTEXT_FLAGS()
 
-dnl We cannot use AC_DEFINE_UNQUOTED() for these definitions, as
-dnl we require make to do insert the proper $(datadir) value
-localedir="\$(datadir)/locale"
-AC_SUBST(localedir)
-AM_CPPFLAGS="$AM_CPPFLAGS -DLOCALEDIR=\\\"${localedir}\\\""
 
+dnl ---------------------------------------------------------------------------
+dnl Thread-safe functions
+dnl ---------------------------------------------------------------------------
+AC_CHECK_FUNCS(localtime_r)
 
 dnl ---------------------------------------------------------------------------
 dnl Compiler/Linker Options and Warnings
@@ -190,14 +214,10 @@ AC_SUBST(AM_LDFLAGS)
 dnl ---------------------------------------------------------------------------
 dnl Output files
 dnl ---------------------------------------------------------------------------
-AC_CONFIG_FILES([ 
-  po/Makefile.in
+AC_CONFIG_FILES([  po/Makefile.in
   Makefile
   libexif.spec
   libexif/Makefile
-  libexif/canon/Makefile
-  libexif/olympus/Makefile
-  libexif/pentax/Makefile
   test/Makefile
   test/nls/Makefile
   m4m/Makefile
@@ -207,6 +227,8 @@ AC_CONFIG_FILES([
   libexif.pc
   libexif-uninstalled.pc
   binary/Makefile
+  contrib/Makefile
+  contrib/examples/Makefile
 ])
 AC_OUTPUT
 

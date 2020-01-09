@@ -1,6 +1,6 @@
 /* exif-mnote-data-olympus.c
  *
- * Copyright © 2002, 2003 Lutz Mueller <lutz@users.sourceforge.net>
+ * Copyright (c) 2002, 2003 Lutz Mueller <lutz@users.sourceforge.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,8 +14,8 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301  USA.
  */
 
 #include <config.h>
@@ -29,6 +29,18 @@
 #include <libexif/exif-data.h>
 
 #define DEBUG
+
+/* Uncomment this to fix a problem with Sanyo MakerNotes. It's probably best
+ * not to in most cases because it seems to only affect the thumbnail tag
+ * which is duplicated in IFD 1, and fixing the offset could actually cause
+ * problems with other software that expects the broken form.
+ */
+/*#define EXIF_OVERCOME_SANYO_OFFSET_BUG */
+
+static enum OlympusVersion
+exif_mnote_data_olympus_identify_variant (const unsigned char *buf,
+		unsigned int buf_size);
+
 
 static void
 exif_mnote_data_olympus_clear (ExifMnoteDataOlympus *n)
@@ -65,9 +77,11 @@ exif_mnote_data_olympus_get_value (ExifMnoteData *d, unsigned int i, char *val, 
 
 	if (!d || !val) return NULL;
 	if (i > n->count -1) return NULL;
+/*
 	exif_log (d->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
 		  "Querying value for tag '%s'...",
 		  mnote_olympus_tag_get_name (n->entries[i].tag));
+*/
 	return mnote_olympus_entry_get_value (&n->entries[i], val, maxlen);
 }
 
@@ -86,8 +100,10 @@ exif_mnote_data_olympus_save (ExifMnoteData *ne,
 		unsigned char **buf, unsigned int *buf_size)
 {
 	ExifMnoteDataOlympus *n = (ExifMnoteDataOlympus *) ne;
-	unsigned int i, o, s, doff, base = 0, o2 = 6 + 2;
-	int datao = 0;
+	size_t i, o, s, doff, base = 0, o2 = 6 + 2;
+	size_t datao = 0;
+	unsigned char *t;
+	size_t ts;
 
 	if (!n || !buf || !buf_size) return;
 
@@ -97,18 +113,28 @@ exif_mnote_data_olympus_save (ExifMnoteData *ne,
 	*buf_size = 6 + 2 + 2 + n->count * 12;
 	switch (n->version) {
 	case olympusV1:
+	case sanyoV1:
+	case epsonV1:
 		*buf = exif_mem_alloc (ne->mem, *buf_size);
-		if (!*buf) return;
+		if (!*buf) {
+			EXIF_LOG_NO_MEMORY(ne->log, "ExifMnoteDataOlympus", *buf_size);
+			return;
+		}
 
 		/* Write the header and the number of entries. */
-		strcpy ((char *)*buf, "OLYMP");
+		strcpy ((char *)*buf, n->version==sanyoV1?"SANYO":
+					(n->version==epsonV1?"EPSON":"OLYMP"));
 		exif_set_short (*buf + 6, n->order, (ExifShort) 1);
 		datao = n->offset;
 		break;
+
 	case olympusV2:
 		*buf_size += 8-6 + 4;
 		*buf = exif_mem_alloc (ne->mem, *buf_size);
-		if (!*buf) return;
+		if (!*buf) {
+			EXIF_LOG_NO_MEMORY(ne->log, "ExifMnoteDataOlympus", *buf_size);
+			return;
+		}
 
 		/* Write the header and the number of entries. */
 		strcpy ((char *)*buf, "OLYMPUS");
@@ -119,6 +145,7 @@ exif_mnote_data_olympus_save (ExifMnoteData *ne,
 		exif_set_short (*buf + 10, n->order, (ExifShort) 3);
 		o2 += 4;
 		break;
+
 	case nikonV1: 
 		base = MNOTE_NIKON1_TAG_BASE;
 
@@ -126,18 +153,23 @@ exif_mnote_data_olympus_save (ExifMnoteData *ne,
 		datao += n->offset + 10;
 		/* subtract the size here, so the increment in the next case will not harm us */
 		*buf_size -= 8 + 2;
-		/* Fall through */
+	/* Fall through to nikonV2 handler */
 	case nikonV2: 
+	/* Write out V0 files in V2 format */
+	case nikonV0: 
 		*buf_size += 8 + 2;
 		*buf_size += 4; /* Next IFD pointer */
 		*buf = exif_mem_alloc (ne->mem, *buf_size);
-		if (!*buf) return;
+		if (!*buf) {
+			EXIF_LOG_NO_MEMORY(ne->log, "ExifMnoteDataOlympus", *buf_size);
+			return;
+		}
 
 		/* Write the header and the number of entries. */
 		strcpy ((char *)*buf, "Nikon");
 		(*buf)[6] = n->version;
 
-		if (n->version == nikonV2) {
+		if (n->version != nikonV1) {
 			exif_set_short (*buf + 10, n->order, (ExifShort) (
 				(n->order == EXIF_BYTE_ORDER_INTEL) ?
 				('I' << 8) | 'I' :
@@ -170,12 +202,23 @@ exif_mnote_data_olympus_save (ExifMnoteData *ne,
 		o += 8;
 		s = exif_format_get_size (n->entries[i].format) *
 						n->entries[i].components;
+		if (s > 65536) {
+			/* Corrupt data: EXIF data size is limited to the
+			 * maximum size of a JPEG segment (64 kb).
+			 */
+			continue;
+		}
 		if (s > 4) {
 			doff = *buf_size;
-			*buf_size += s;
-			*buf = exif_mem_realloc (ne->mem, *buf,
-						 sizeof (char) * *buf_size);
-			if (!*buf) return;
+			ts = *buf_size + s;
+			t = exif_mem_realloc (ne->mem, *buf,
+						 sizeof (char) * ts);
+			if (!t) {
+				EXIF_LOG_NO_MEMORY(ne->log, "ExifMnoteDataOlympus", ts);
+				return;
+			}
+			*buf = t;
+			*buf_size = ts;
 			exif_set_long (*buf + o, n->order, datao + doff);
 		} else
 			doff = o;
@@ -196,17 +239,30 @@ exif_mnote_data_olympus_load (ExifMnoteData *en,
 {
 	ExifMnoteDataOlympus *n = (ExifMnoteDataOlympus *) en;
 	ExifShort c;
-	unsigned int i, s, o, o2 = 0, datao = 6, base = 0;
+	size_t i, tcount, o, o2, datao = 6, base = 0;
 
-	if (!n || !buf) return;
-
-	/* Start of interesting data */
-	o2 = 6 + n->offset;
+	if (!n || !buf || !buf_size) {
+		exif_log (en->log, EXIF_LOG_CODE_CORRUPT_DATA,
+			  "ExifMnoteDataOlympus", "Short MakerNote");
+		return;
+	}
+	o2 = 6 + n->offset; /* Start of interesting data */
+	if ((o2 + 10 < o2) || (o2 + 10 < 10) || (o2 + 10 > buf_size)) {
+		exif_log (en->log, EXIF_LOG_CODE_CORRUPT_DATA,
+			  "ExifMnoteDataOlympus", "Short MakerNote");
+		return;
+	}
 
 	/*
 	 * Olympus headers start with "OLYMP" and need to have at least
 	 * a size of 22 bytes (6 for 'OLYMP', 2 other bytes, 2 for the
 	 * number of entries, and 12 for one entry.
+	 *
+	 * Sanyo format is identical and uses identical tags except that
+	 * header starts with "SANYO".
+	 *
+	 * Epson format is identical and uses identical tags except that
+	 * header starts with "EPSON".
 	 *
 	 * Nikon headers start with "Nikon" (6 bytes including '\0'), 
 	 * version number (1 or 2).
@@ -218,20 +274,32 @@ exif_mnote_data_olympus_load (ExifMnoteData *en,
 	 * two unknown bytes (0), "MM" or "II", another byte 0 and 
 	 * lastly 0x2A.
 	 */
-	if (buf_size - n->offset < 22) return;
-	if (!memcmp (buf + o2, "OLYMP", 6)) {
+	n->version = exif_mnote_data_olympus_identify_variant(buf+o2, buf_size-o2);
+	switch (n->version) {
+	case olympusV1:
+	case sanyoV1:
+	case epsonV1:
 		exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
-			"Parsing Olympus maker note v1...");
+			"Parsing Olympus/Sanyo/Epson maker note v1...");
 
 		/* The number of entries is at position 8. */
-		n->version = olympusV1;
 		if (buf[o2 + 6] == 1)
 			n->order = EXIF_BYTE_ORDER_INTEL;
 		else if (buf[o2 + 6 + 1] == 1)
 			n->order = EXIF_BYTE_ORDER_MOTOROLA;
 		o2 += 8;
+		if (o2 + 2 > buf_size) return;
+		c = exif_get_short (buf + o2, n->order);
+		if ((!(c & 0xFF)) && (c > 0x500)) {
+			if (n->order == EXIF_BYTE_ORDER_INTEL) {
+				n->order = EXIF_BYTE_ORDER_MOTOROLA;
+			} else {
+				n->order = EXIF_BYTE_ORDER_INTEL;
+			}
+		}
+		break;
 
-	} else if (!memcmp (buf + o2, "OLYMPUS", 8)) {
+	case olympusV2:
 		/* Olympus S760, S770 */
 		datao = o2;
 		o2 += 8;
@@ -245,117 +313,193 @@ exif_mnote_data_olympus_load (ExifMnoteData *en,
 			n->order = EXIF_BYTE_ORDER_MOTOROLA;
 
 		/* The number of entries is at position 8+4. */
-		n->version = olympusV2;
 		o2 += 4;
+		break;
 
-	} else if (!memcmp (buf + o2, "Nikon", 6)) {
+	case nikonV1:
 		o2 += 6;
+		if (o2 >= buf_size) return;
 		exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
-			"Parsing Nikon maker note (0x%02x, %02x, %02x, "
+			"Parsing Nikon maker note v1 (0x%02x, %02x, %02x, "
 			"%02x, %02x, %02x, %02x, %02x)...",
 			buf[o2 + 0], buf[o2 + 1], buf[o2 + 2], buf[o2 + 3], 
 			buf[o2 + 4], buf[o2 + 5], buf[o2 + 6], buf[o2 + 7]);
-		/* The first byte is the version. */
-		if (o2 >= buf_size) return;
-		n->version = buf[o2];
+
+		/* Skip version number */
 		o2 += 1;
 
 		/* Skip an unknown byte (00 or 0A). */
 		o2 += 1;
 
-		switch (n->version) {
-		case nikonV1:
-
-			base = MNOTE_NIKON1_TAG_BASE;
-			break;
-
-		case nikonV2:
-
-			/* Skip 2 unknown bytes (00 00). */
-			o2 += 2;
-
-			/*
-			 * Byte order. From here the data offset
-			 * gets calculated.
-			 */
-			datao = o2;
-			if (o2 >= buf_size) return;
-			if (!strncmp ((char *)&buf[o2], "II", 2))
-				n->order = EXIF_BYTE_ORDER_INTEL;
-			else if (!strncmp ((char *)&buf[o2], "MM", 2))
+		base = MNOTE_NIKON1_TAG_BASE;
+		/* Fix endianness, if needed */
+		if (o2 + 2 > buf_size) return;
+		c = exif_get_short (buf + o2, n->order);
+		if ((!(c & 0xFF)) && (c > 0x500)) {
+			if (n->order == EXIF_BYTE_ORDER_INTEL) {
 				n->order = EXIF_BYTE_ORDER_MOTOROLA;
-			else {
-				exif_log (en->log, EXIF_LOG_CODE_DEBUG,
-					"ExifMnoteDatalympus", "Unknown "
-					"byte order '%c%c'", buf[o2],
-					buf[o2 + 1]);
-				return;
+			} else {
+				n->order = EXIF_BYTE_ORDER_INTEL;
 			}
-			o2 += 2;
+		}
+		break;
 
-			/* Skip 2 unknown bytes (00 2A). */
-			o2 += 2;
+	case nikonV2:
+		o2 += 6;
+		if (o2 >= buf_size) return;
+		exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
+			"Parsing Nikon maker note v2 (0x%02x, %02x, %02x, "
+			"%02x, %02x, %02x, %02x, %02x)...",
+			buf[o2 + 0], buf[o2 + 1], buf[o2 + 2], buf[o2 + 3], 
+			buf[o2 + 4], buf[o2 + 5], buf[o2 + 6], buf[o2 + 7]);
 
-			/* Go to where the number of entries is. */
-			if (o2 >= buf_size) return;
-			o2 = datao + exif_get_long (buf + o2, n->order);
-			break;
+		/* Skip version number */
+		o2 += 1;
 
-		default:
+		/* Skip an unknown byte (00 or 0A). */
+		o2 += 1;
+
+		/* Skip 2 unknown bytes (00 00). */
+		o2 += 2;
+
+		/*
+		 * Byte order. From here the data offset
+		 * gets calculated.
+		 */
+		datao = o2;
+		if (o2 >= buf_size) return;
+		if (!strncmp ((char *)&buf[o2], "II", 2))
+			n->order = EXIF_BYTE_ORDER_INTEL;
+		else if (!strncmp ((char *)&buf[o2], "MM", 2))
+			n->order = EXIF_BYTE_ORDER_MOTOROLA;
+		else {
 			exif_log (en->log, EXIF_LOG_CODE_DEBUG,
-				"ExifMnoteDataOlympus", "Unknown version "
-				"number %i.", n->version);
+				"ExifMnoteDataOlympus", "Unknown "
+				"byte order '%c%c'", buf[o2],
+				buf[o2 + 1]);
 			return;
 		}
-	} else if (!memcmp (buf + o2, "\0\x1b", 2)) {
-		n->version = nikonV2;
-	} else {
+		o2 += 2;
+
+		/* Skip 2 unknown bytes (00 2A). */
+		o2 += 2;
+
+		/* Go to where the number of entries is. */
+		if (o2 + 4 > buf_size) return;
+		o2 = datao + exif_get_long (buf + o2, n->order);
+		break;
+
+	case nikonV0:
+		exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
+			"Parsing Nikon maker note v0 (0x%02x, %02x, %02x, "
+			"%02x, %02x, %02x, %02x, %02x)...",
+			buf[o2 + 0], buf[o2 + 1], buf[o2 + 2], buf[o2 + 3], 
+			buf[o2 + 4], buf[o2 + 5], buf[o2 + 6], buf[o2 + 7]);
+		/* 00 1b is # of entries in Motorola order - the rest should also be in MM order */
+		n->order = EXIF_BYTE_ORDER_MOTOROLA;
+		break;
+	
+	default:
+		exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteDataOlympus",
+			"Unknown Olympus variant %i.", n->version);
 		return;
 	}
 
-	/* Number of entries */
-	if (o2 >= buf_size) return;
+	/* Sanity check the offset */
+	if ((o2 + 2 < o2) || (o2 + 2 < 2) || (o2 + 2 > buf_size)) {
+		exif_log (en->log, EXIF_LOG_CODE_CORRUPT_DATA,
+			  "ExifMnoteOlympus", "Short MakerNote");
+		return;
+	}
+
+	/* Read the number of tags */
 	c = exif_get_short (buf + o2, n->order);
 	o2 += 2;
 
-	/* Read the number of entries and remove old ones. */
+	/* Remove any old entries */
 	exif_mnote_data_olympus_clear (n);
 
+	/* Reserve enough space for all the possible MakerNote tags */
 	n->entries = exif_mem_alloc (en->mem, sizeof (MnoteOlympusEntry) * c);
-	if (!n->entries) return;
+	if (!n->entries) {
+		EXIF_LOG_NO_MEMORY(en->log, "ExifMnoteOlympus", sizeof (MnoteOlympusEntry) * c);
+		return;
+	}
 
-	/* Parse the entries */
-	for (i = 0; i < c; i++) {
-	    o = o2 + 12 * i;
-	    if (o + 12 > buf_size) return;
+	/* Parse all c entries, storing ones that are successfully parsed */
+	tcount = 0;
+	for (i = c, o = o2; i; --i, o += 12) {
+		size_t s;
+		if ((o + 12 < o) || (o + 12 < 12) || (o + 12 > buf_size)) {
+			exif_log (en->log, EXIF_LOG_CODE_CORRUPT_DATA,
+				  "ExifMnoteOlympus", "Short MakerNote");
+			break;
+		}
 
-	    n->count = i + 1;
-	    n->entries[i].tag        = exif_get_short (buf + o, n->order) + base;
-	    n->entries[i].format     = exif_get_short (buf + o + 2, n->order);
-	    n->entries[i].components = exif_get_long (buf + o + 4, n->order);
-	    n->entries[i].order      = n->order;
+	    n->entries[tcount].tag        = exif_get_short (buf + o, n->order) + base;
+	    n->entries[tcount].format     = exif_get_short (buf + o + 2, n->order);
+	    n->entries[tcount].components = exif_get_long (buf + o + 4, n->order);
+	    n->entries[tcount].order      = n->order;
 
 	    exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteOlympus",
-		      "Loading entry 0x%x ('%s')...", n->entries[i].tag,
-		      mnote_olympus_tag_get_name (n->entries[i].tag));
+		      "Loading entry 0x%x ('%s')...", n->entries[tcount].tag,
+		      mnote_olympus_tag_get_name (n->entries[tcount].tag));
+/*	    exif_log (en->log, EXIF_LOG_CODE_DEBUG, "ExifMnoteOlympus",
+			    "0x%x %d %ld*(%d)",
+		    n->entries[tcount].tag,
+		    n->entries[tcount].format,
+		    n->entries[tcount].components,
+		    (int)exif_format_get_size(n->entries[tcount].format)); */
 
 	    /*
 	     * Size? If bigger than 4 bytes, the actual data is not
 	     * in the entry but somewhere else (offset).
 	     */
-	    s = exif_format_get_size (n->entries[i].format) *
-		   			 n->entries[i].components;
-	    if (!s) continue;
-	    o += 8;
-	    if (s > 4) o = exif_get_long (buf + o, n->order) + datao;
-	    if (o + s > buf_size) continue;
+	    s = exif_format_get_size (n->entries[tcount].format) *
+		   			 n->entries[tcount].components;
+		n->entries[tcount].size = s;
+		if (s) {
+			size_t dataofs = o + 8;
+			if (s > 4) {
+				/* The data in this case is merely a pointer */
+				dataofs = exif_get_long (buf + dataofs, n->order) + datao;
+#ifdef EXIF_OVERCOME_SANYO_OFFSET_BUG
+				/* Some Sanyo models (e.g. VPC-C5, C40) suffer from a bug when
+				 * writing the offset for the MNOTE_OLYMPUS_TAG_THUMBNAILIMAGE
+				 * tag in its MakerNote. The offset is actually the absolute
+				 * position in the file instead of the position within the IFD.
+				 */
+			    if (dataofs + s > buf_size && n->version == sanyoV1) {
+					/* fix pointer */
+					dataofs -= datao + 6;
+					exif_log (en->log, EXIF_LOG_CODE_DEBUG,
+						  "ExifMnoteOlympus",
+						  "Inconsistent thumbnail tag offset; attempting to recover");
+			    }
+#endif
+			}
+			if ((dataofs + s < dataofs) || (dataofs + s < s) || 
+			    (dataofs + s > buf_size)) {
+				exif_log (en->log, EXIF_LOG_CODE_DEBUG,
+					  "ExifMnoteOlympus",
+					  "Tag data past end of buffer (%u > %u)",
+					  dataofs + s, buf_size);
+				continue;
+			}
 
-	    /* Sanity check */
-	    n->entries[i].data = exif_mem_alloc (en->mem, s);
-	    if (!n->entries[i].data) continue;
-	    n->entries[i].size = s;
-	    memcpy (n->entries[i].data, buf + o, s);
+			n->entries[tcount].data = exif_mem_alloc (en->mem, s);
+			if (!n->entries[tcount].data) {
+				EXIF_LOG_NO_MEMORY(en->log, "ExifMnoteOlympus", s);
+				continue;
+			}
+			memcpy (n->entries[tcount].data, buf + dataofs, s);
+		}
+
+		/* Tag was successfully parsed */
+		++tcount;
 	}
+	/* Store the count of successfully parsed tags */
+	n->count = tcount;
 }
 
 static unsigned int
@@ -427,6 +571,64 @@ exif_mnote_data_olympus_set_offset (ExifMnoteData *n, unsigned int o)
 {
 	if (n) ((ExifMnoteDataOlympus *) n)->offset = o;
 }
+
+static enum OlympusVersion
+exif_mnote_data_olympus_identify_variant (const unsigned char *buf,
+		unsigned int buf_size)
+{
+	/* Olympus, Nikon, Sanyo, Epson */
+	if (buf_size >= 8) {
+		/* Match the terminating NUL character, too */
+		if (!memcmp (buf, "OLYMPUS", 8))
+			   return olympusV2;
+		else if (!memcmp (buf, "OLYMP", 6))
+			   return olympusV1;
+		else if (!memcmp (buf, "SANYO", 6))
+			   return sanyoV1;
+		else if (!memcmp (buf, "EPSON", 6))
+			   return epsonV1;
+		else if (!memcmp (buf, "Nikon", 6)) {
+			switch (buf[6]) {
+				case 1:  return nikonV1;
+				case 2:  return nikonV2;
+				default: return 0; /* Unrecognized Nikon variant */
+			}
+		}
+	}
+
+	/* Another variant of Nikon */
+	if ((buf_size >= 2) && (buf[0] == 0x00) && (buf[1] == 0x1b)) {
+		return nikonV0;
+	}
+
+	return unrecognized;
+}
+
+int
+exif_mnote_data_olympus_identify (const ExifData *ed, const ExifEntry *e)
+{
+	int variant = exif_mnote_data_olympus_identify_variant(e->data, e->size);
+
+	if (variant == nikonV0) {
+		/* This variant needs some extra checking with the Make */
+		char value[5];
+		ExifEntry *em = exif_data_get_entry (ed, EXIF_TAG_MAKE);
+		variant = unrecognized;
+
+		if (em) {
+			const char *v = exif_entry_get_value (em, value, sizeof(value));
+			if (v && (!strncmp (v, "Nikon", sizeof(value)) || 
+					  !strncmp (v, "NIKON", sizeof(value)) ))
+				/* When saved, this variant will be written out like the
+				 * alternative nikonV2 form above instead
+				 */
+				variant = nikonV0;
+		}
+	}
+
+	return variant;
+}
+
 
 ExifMnoteData *
 exif_mnote_data_olympus_new (ExifMem *mem)

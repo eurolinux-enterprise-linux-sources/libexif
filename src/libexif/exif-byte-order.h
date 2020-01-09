@@ -1,6 +1,8 @@
-/* exif-byte-order.h
- *
- * Copyright © 2002 Lutz Müller <lutz@users.sourceforge.net>
+/*! \file exif-byte-order.h
+ * \brief Defines the ExifByteOrder enum and the associated functions.
+ */
+/* 
+ * Copyright (c) 2002 Lutz Mueller <lutz@users.sourceforge.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,8 +16,8 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301  USA.
  */
 
 #ifndef __EXIF_BYTE_ORDER_H__
@@ -25,11 +27,18 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/*! Which byte order to use */
 typedef enum {
+	/*! Big-endian byte order */
 	EXIF_BYTE_ORDER_MOTOROLA,
+	/*! Little-endian byte order */
 	EXIF_BYTE_ORDER_INTEL
 } ExifByteOrder;
 
+/*! Return a short, localized, textual name for the given byte order.
+ * \param[in] order byte order
+ * \return localized textual name of the byte order
+ */
 const char *exif_byte_order_get_name (ExifByteOrder order);
 
 #ifdef __cplusplus

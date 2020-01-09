@@ -1,3 +1,744 @@
+2012-07-12  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed some buffer overflows in exif_entry_format_value()
+	  This fixes CVE-2012-2814.  Reported by Mateusz Jurczyk of
+	  Google Security Team
+	* Fixed an off-by-one error in exif_convert_utf16_to_utf8()
+	  This can cause a one-byte NUL write past the end of the buffer.
+	  This fixes CVE-2012-2840
+	* Don't read past the end of a tag when converting from UTF-16
+	  This fixes CVE-2012-2813. Reported by Mateusz Jurczyk of
+	  Google Security Team
+	* Fixed an out of bounds read on corrupted input
+	  The EXIF_TAG_COPYRIGHT tag ought to be, but perhaps is not,
+	  NUL-terminated.
+	  This fixes CVE-2012-2812. Reported by Mateusz Jurczyk of
+	  Google Security Team
+	* Fixed a buffer overflow problem in exif_entry_get_value
+	  If the application passed in a buffer length of 0, then it would
+	  be treated as the buffer had unlimited length.
+	  This fixes CVE-2012-2841
+	* Fix a buffer overflow on corrupt EXIF data.
+	  This fixes bug #3434540 and fixes part of CVE-2012-2836
+	  Reported by Yunho Kim
+	* Fix a buffer overflow on corrupted JPEG data
+	  An unsigned data length might wrap around when decremented
+	  below zero, bypassing sanity checks on length.
+	  This code path can probably only occur if exif_data_load_data()
+	  is called directly by the application on data that wasn't parsed
+	  by libexif itself.
+	  This solves the other part of CVE-2012-2836
+	* Fixed some possible division-by-zeros in Olympus-style makernotes
+	  This fixes bug #3434545, a.k.a. CVE-2012-2837
+	  Reported by Yunho Kim
+	* Released 0.6.21
+
+2012-07-09  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* po/de.po: Updated German translation by Christian Kirbach
+	* po/pl.po: Updated Polish translation by Jakub Bogusz
+	* po/sk.po: Updated Slovak translation by Ivan Mas√°r
+	* po/uk.po: Updated Ukrainian translation by Yuri Chornoivan
+	* po/vi.po: Updated Vietnamese translation by Tr·∫ßn Ng·ªçc Qu√¢n
+	* Mention that uk.po must now be updated through translationproject.org
+
+2012-06-25  Dan Fandrich <dan@coneharvesters.com>
+
+	* Updated non-TP translations from launchpad.net's "precise"
+	  translations:
+	  be.po bs.po en_GB.po pt.po pt_BR.po ru.po sq.po sr.po tr.po zh_CN.po
+	* Added new translations from launchpad.net's "precise" translations:
+	* po/en_AU.po: Added English (Australian) translation by Joel Pickett
+	* po/uk.po: Added Ukrainian translation by Yuri Chornoivan
+	* po/bs.po: Removed some erroneous embedded \r\n in the translations
+	* Updated non-TP translations to the latest strings in the source code
+	* po/en_CA.po: Updated Canadian English translation
+
+2012-05-16  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/vi.po: Updated Vietnamese translation by Tr·∫ßn Ng·ªçc Qu√¢n
+
+2011-11-07  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/de.po: Updated German translation by Christian Kirbach
+
+2011-08-26  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/cs.po: Updated Czech translation by Jan Patera
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* po/nl.po: Updated Dutch translation by Erwin Poeze
+	* po/pl.po: Updated Polish translation by Jakub Bogusz
+	* po/sk.po: Updated Slovak translation by Ivan Mas√°r
+	* po/sv.po: Updated Swedish translation by Daniel Nylander
+
+2011-07-11  Dan Fandrich <dan@coneharvesters.com>
+
+	* Made mnote_fuji_tag_get_description and
+	  mnote_canon_tag_get_descripton more robust should any NULL
+	  descriptions be added to the table (bug #3307219)
+
+2011-05-12  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added more Canon lenses (from Adrian von Bidder and drochner)
+
+2011-02-16  Dan Fandrich <dan@coneharvesters.com>
+
+	* Changed "knots" to more clear "nautical miles" (Ubuntu Launchpad bug
+	  https://bugs.launchpad.net/bugs/712115 reported by Daniel Thibault).
+
+2010-12-15  Dan Fandrich <dan@coneharvesters.com>
+
+	* Released 0.6.20
+
+2010-12-13  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* Updated non-TP translations from launchpad.net:
+	  be.po en_GB.po pt_BR.po pt.po ru.po sq.po sr.po zh_CN.po
+	* po/bs.po: Added Bosnian translation from launchpad.net
+	* po/tr.po: Added Turkish translation from launchpad.net
+
+2010-12-10  Dan Fandrich <dan@coneharvesters.com>
+
+	* Changed the display of rational numbers to estimate the number of
+	  significant figures (based on the size of the denominator) and show
+	  that number of decimal places.  This simplifies the output in the
+	  case of integers (e.g. resolution), and shows all the available
+	  accuracy in the case of rationals (e.g. latitude & longitude).
+
+2010-10-14  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed some invalid format specifiers and typecasts. This caused a
+	  problem on mingw32, at least.
+
+2010-10-07  Dan Fandrich <dan@coneharvesters.com>
+
+	* Refactored MakerNote detection code to put detection of each type
+	  into the module handling that type
+
+2010-09-23  Dan Fandrich <dan@coneharvesters.com>
+
+	* exif_entry_dump() now displays the correct tag name for GPS tags by
+	  taking the IFD into account when looking up the name. Fixes
+	  bug #3073307.
+
+2010-08-11  Dan Fandrich <dan@coneharvesters.com>
+
+	* Removed redundant sentence. Fixes Ubuntu bug #197306
+
+2010-07-23  Dan Fandrich <dan@coneharvesters.com>
+
+	* Canon EOS 5D Mark II writes Aperture values as invalid values
+	  0x80000000/1 which makes pow() throw floating-point exceptions
+
+2010-06-16  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* po/it.po: Updated Italian translation by Sergio Zanchetta 
+	* po/nl.po: Updated Dutch translation by Erwin Poeze
+
+2010-02-18  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* po/de.po: Updated German translation by Marcus Meissner
+	* po/ja.po: Updated Japanese translation by Tadashi Jokagi
+	* po/pl.po: Updated Polish translation by Jakub Bogusz
+	* po/vi.po: Updated Vietnamese translation by Clytie Siddall
+	* po/en_CA.po: Updated Canadian English translation
+
+2010-02-05  Dan Fandrich <dan@coneharvesters.com>
+
+	* Made the case of text output be more consistent. Now, tag titles
+	  have each word capitalized (like a title) and tag values
+	  are always lower case, except the first word which is capitalized
+	  (more like a sentence).
+
+2010-01-25  Dan Fandrich <dan@coneharvesters.com>
+
+	* configure.ac: Turned on the --enable-silent-rules configure option
+
+2009-12-30  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+	* po/sk.po: Updated Slovak translation by Ivan Mas√°r
+	* po/sv.po: Updated Swedish translation by Daniel Nylander
+
+2009-12-17  Dan Fandrich <dan@coneharvesters.com>
+
+	* Don't warn "No thumbnail but entries on thumbnail." unless
+	  there actually are entries.
+
+2009-12-15  Dan Fandrich <dan@coneharvesters.com>
+
+	* libexif.pc.in: Move -lm flag into Libs.private since it's only
+	  needed when statically linking. A future enhancement would be to
+	  make even this dependent on the check for -lm done in configure.
+
+2009-12-11  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added tag 0xEA1C, the Padding tag from the Microsoft HD Photo
+	  specification.
+
+2009-12-08  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed some memory leaks in the write-exif.c example program and
+	  added some examples of allocating a new tag.
+
+2009-11-27  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/ja.po: Updated Japanese translation by Tadashi Jokagi
+
+2009-11-25  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+
+2009-11-23  Dan Fandrich <dan@coneharvesters.com>
+
+	* Include README-Win32.txt in all source distributions
+
+2009-11-16  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/ja.po: Updated Japanese translation by Tadashi Jokagi
+
+2009-11-12  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed a heap buffer overflow during tag format conversion.
+	* Released 0.6.19
+
+2009-11-07  Dan Fandrich <dan@coneharvesters.com>
+
+	* Sorted ExifFormatTable[] in approximate decreasing order of
+	  popularity to decrease the total average lookup time.
+
+2009-11-05  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added a bunch of new translations from launchpad.net
+	* po/be.po: Added Belarusian translation by Iryna Nikanchuk 
+	* po/en_GB.po: Added English (United Kingdom) translation by Bruce
+	  Cowan 
+	* po/it.po: Added Italian translation by Sergio Zanchetta 
+	* po/ja.po: Added Japanese translation by Shushi Kurose 
+	* po/pt.po: Added Portuguese translation by nglnx 
+	* po/sq.po: Added Albanian translation by Vilson Gjeci 
+	* po/zh_CN.po: Added Chinese (simplified) translation by Tao Wei 
+
+2009-11-03  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Updated Danish translation by Joe Hansen
+
+2009-10-27  Dan Fandrich <dan@coneharvesters.com>
+
+	* Improved tag table lookup performance by optimally ordering IFD
+	  search and aborting searches early if the tag is not found.
+
+2009-10-14  Dan Fandrich <dan@coneharvesters.com>
+
+	* Changed the various functions searching for tags in ExifTagTable[]
+	  to use a binary search. This single change increases the speed of
+	  a run through the libexif-testsuite by 7%
+
+2009-10-13  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/sv.po: Updated Swedish translation by Daniel Nylander
+	* po/vi.po: Updated Vietnamese translation by Clytie Siddall
+	* Fixed an inverted logic condition that prevented the bug
+	  report address from appearing in the .pot file
+	* Ensure that ExifTagTable[] is sorted by tag to allow for future
+	  more efficient searching.
+
+2009-10-09  Dan Fandrich <dan@coneharvesters.com>
+
+	* Released 0.6.18
+
+2009-10-09  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/sr.po: Added Serbian translation by Marko Uskokovic
+	* po/pt_BR.po: Added Portuguese (Brazil) translation by Andr√© Gondi
+
+2009-10-08  Dan Fandrich <dan@coneharvesters.com>
+
+	* Demoted from EXIF_LOG_CODE_CORRUPT_DATA to EXIF_LOG_CODE_DEBUG the
+	  MakerNote log messages that would result if a MakerNote were
+	  rewritten by an application without rebasing the internal data
+	  offsets.  The exif front end (at least) aborts processing if
+	  such a log message is found, but these kinds of errors are
+	  far too common (and practically unavoidable) to handle them
+	  this way.
+
+2009-10-06  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added --enable-maintainer-mode in configure and made the SourceForge
+	  logo appear in the Doxygen documentation only when it's enabled.
+
+2009-10-05  Dan Fandrich <dan@coneharvesters.com>
+
+	* Updated translations from Translation Project members to the
+	  latest & hopefully final .pot file before release
+
+2009-10-01  Dan Fandrich <dan@coneharvesters.com>
+
+	* Bumped the library minor version number because of the addition
+	  of exif_loader_get_buf()
+	* Added exif.h to the source tarball so users can generate full
+	  Doxygen documentation.
+
+2009-09-30  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added a new public API function, exif_loader_get_buf(), which
+	  returns a pointer to the raw data in the ExifLoader. Without this,
+	  the only way to get the ExifLoader data out was as an
+	  ExifData and using only the default set of ExifDataOptions.
+
+2009-09-29  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added EXIF_DATA_TYPE_UNKNOWN as a backwards-compatible
+	  replacement for most uses of EXIF_DATA_TYPE_COUNT since that's
+	  a clearer name for how it's being used.
+
+2009-09-26  Dan Fandrich <dan@coneharvesters.com>
+
+	* libexif/exif-data.c: Added more error log messages and improved
+	  a few data boundary checks.
+	* Sped up exif_content_fix() considerably by splitting the one giant
+	  loop into two much smaller & faster loops.
+
+2009-09-24  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed some problems in MakerNote parsing that could cause a
+	  read past the end of a buffer and therefore a segfault.
+	* Allow MakerNote parsing to continue even if one tag parses
+	  incorrectly.
+	* Log an error whenever memory allocation fails in MakerNote parsing.
+
+2009-09-23  Dan Fandrich <dan@coneharvesters.com>
+
+	* Removed bogus "APEX" value from shutter speed display (thanks to
+	  Jef Driesen for confirming this)
+	* Fixed a couple of off-by-one unnecessary string truncations
+	* Define M_PI for those systems that don't have it
+
+2009-09-23  Jan Patera <patera@users.sourceforge.net>
+
+	* po/cs.po: Updated Czech translation by Jan Patera
+
+2009-09-18  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added support for writing Pentax and Casio v2 MakerNotes
+	* Now displaying all components in Pentax and Casio v2 MakerNotes
+	  when a tag has more than one
+
+2009-09-18  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/de.po: Updated German translation by Marcus Meissner
+	* po/sv.po: Updated Swedish translation by Daniel Nylander
+	* po/vi.po: Updated Vietnamese translation by Clytie Siddall
+
+2009-09-17  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/pl.po: Updated Polish translation by Jakub Bogusz
+
+2009-09-16  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/en_CA.po: Updated Canadian English translation
+
+2009-08-12  Lutz Mueller <lutz@users.sourceforge.com>
+
+	Patch by Vladimir Petrov <vppetrov@mm-sol.com> plus some whitespace
+        fixes by myself:
+
+	* libexif/exif-entry.c: (exif_entry_[fix,get_value,initialize]): 
+          Support EXIF_TAG_ISO_SPEED_RATINGS.
+
+2009-06-15  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Danish translation corrections by Lars Christian Jensen
+
+2009-06-03  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/da.po: Added Danish translation by Joe Hansen
+
+2009-05-28  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fixed negative exposure values in Canon makernotes (bug #2797280)
+
+2009-05-02  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added contrib/examples/write-exif.c
+	* Create a valid default for EXIF_TAG_COMPONENTS_CONFIGURATION
+
+2009-03-21  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Meder Kydyraliev <meder.k@gmail.com> suggested to add some sanity
+	checks:
+
+	* libexif/exif-data.c (exif_data_load_entry),
+	  (exif_data_load_data_thumbnail)
+	* libexif/canon/exif_mnote-data-canon.c
+          (exif_mnote_data_canon_load)
+	* libexif/fuji/exif-mnote-data-fuji.c
+	  (exif_mnote_data_fuji_load)
+	* libexif/olympus/exif-mnote-data-olympus.c
+          (exif_mnote_data_olympus_load)
+	* libexif/pentax/exif-mnote-data-pentax.c
+	  (exif_mnote_data_pentax_load)
+
+2009-03-16  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* libexif/canon/exif-mnote-data-canon.c:
+          (exif_mnote_data_canon_load): Fix the coding style in this function
+	  to make it easier to read.
+
+2009-02-02  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added AC_C_INLINE to configure.ac to define the inline keyword
+	  if the compiler doesn't handle it already.
+
+2009-01-28  Dan Fandrich <dan@coneharvesters.com>
+
+	* Decode the value for EXIF_TAG_LIGHT_SOURCE and EXIF_TAG_SCENE_TYPE
+	* Split out the generic ExifEntry formatting code into a new function
+	  exif_entry_format_value()
+	* Fixed some signed vs unsigned formatting errors
+	* Format the EXIF_TAG_GPS_TIME_STAMP & EXIF_TAG_GPS_ALTITUDE_REF tags
+	* Improved the wrong data type fixup
+	* Separated the MNOTE_SANYO_TAG_SELFTIMER 2 sec. case from the other
+	  On/Off cases
+	* Renamed MNOTE_NIKON_TAG_PREVIEWIMAGE_IFD_POINTERS to show that it's 
+	  an IFD. The case of IFDs in MakerNotes needs to be handled better
+	  because right now, those MakerNote IFD tags are corrupted since
+	  the sub-IFDs aren't being read and written.
+
+2009-01-22  Dan Fandrich <dan@coneharvesters.com>
+
+	* Fix exif_tag_get_support_level_in_ifd() to handle the case where two
+	  tags with the same number exist in different IFDs.
+	* Added test-tagtable to do some tests on the static EXIF tag
+	  information table.
+
+2009-01-21  Dan Fandrich <dan@coneharvesters.com>
+
+	* libexif/exif-entry.c: Initialize the default for EXIF_TAG_COLOR_SPACE
+	  to "Uncalibrated"
+	* libexif/exif-data.c: Reduce the recursion limit
+	* When the data type is not known in exif_tag_get_support_level_in_ifd
+	  check the support level for all data types and if it's all the same,
+	  return that. This means that fixing a new EXIF tag block will
+	  actually create some tags in it now.
+
+2009-01-15  Dan Fandrich <dan@coneharvesters.com>
+
+	* Interpret more Sanyo MakerNote tags
+
+2009-01-12  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added support for Epson MakerNotes, which have the identical
+	  tag format and namespace of the Olympus ones.
+
+2009-01-06  Dan Fandrich <dan@coneharvesters.com>
+
+	* libexif/exif-tags.c: Added remaining GPS tags from the EXIF 2.2
+	  spec to the tag table.
+
+2009-01-03  Dan Fandrich <dan@coneharvesters.com>
+
+	* contrib/examples/photographer.c: Added example program to show how
+	  to display EXIF and MakerNote tags
+
+2008-12-22  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/vi.po: Updated Vietnamese translation by Clytie Siddall
+        * Fixed bug #1946138 to stop ignoring CFLAGS in the sqrt configure test
+
+2008-11-25  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/sk.po: Updated Slovak translation by Ivan Mas√°r
+
+2008-11-22  Dan Fandrich <dan@coneharvesters.com>
+
+	* Added Doxygen comments for the main API entry points and data
+	  structures
+
+2008-11-18  Dan Fandrich <dan@coneharvesters.com>
+
+	* libexif/exif-entry.c & configure.ac: use localtime_r when available
+	  to make libexif thread safe
+	* po/nl.po: Updated Dutch translation by Erwin Poeze
+	* po/pl.po: Updated Polish translation by Jakub Bogusz
+	* contrib/examples/*: Added a couple of simple example programs
+	  to show how to use libexif. One was written by Naysawn Naderi
+	  and the other one I wrote. Closes bug #1246824.
+
+2008-11-06  Dan Fandrich <dan@coneharvesters.com>
+
+	* Released 0.6.17
+
+2008-11-05  Dan Fandrich <dan@coneharvesters.com>
+
+	* aolserver/*: moved to contrib/aolserver/
+	* README: updated
+	* po/de.po: Updated German translation by Marcus Meissner
+	* Added contrib/watcom/ directory to the source tarball now that
+	  Jan Patera brought it up-to-date.
+	* libexif.spec.in: changed default release number to 1; added NEWS,
+	  AUTHORS and COPYING files to package; moved libexif.so file to -devel
+	  package; corrected license to LGPL
+
+2008-10-20  Jan Patera <patera@users.sourceforge.net>
+
+	* libexif/pentax/mnote-pentax-tag.c & olympus/mnote-olympus-tag.c:
+	  Don't crash in mnote_XX_tag_get_description on unknown tags
+
+2008-10-04  Jan Patera <patera@users.sourceforge.net>
+
+	* libexif/canon/mnote-canon-entry.c: fixed interpretation
+	  of Auto ISO and Self-Timer entries
+
+2008-10-08  Aric Blumer <aricblumer@users.sourceforge.net>
+
+	* libexif/exif-tag.c: GPS tags EXIF_TAG_GPS_IMG_DIRECTION_REF
+	  and EXIF_TAG_GPS_IMG_DIRECTION are now recognized
+
+2008-10-04  Jan Patera <patera@users.sourceforge.net>
+
+	* libexif/olympus/exif-mnote-data-olympus.c: bug #2071600,
+	  gnome Bug #549029: Original v1 Nikon makernotes
+	  are always parsed using MM order, regardless of
+	  main EXIF data word order.
+
+2008-10-04  Louis Strous <louis_strous@users.sourceforge.net>
+
+	* libexif/exif-loader.c: DHT & DQT markers are now properly
+	  skipped when searching for APP1 marker in JPEG stream.
+	  Apparently such files are created by Gisteq PhotoTrackr SW
+	  used to add GPS tags.
+
+2008-10-02  Niek Bergboer <niek@google.com>
+
+	* libexif/exif-data.c libexif/canon/exif-mnote-data-canon.c
+	  libexif/fuji/exif-mnote-data-fuji.c
+	  libexif/olympus/exif-mnote-data-olympus.c
+	  libexif/pentax/exif-mnote-data-pentax.c:
+	  Replaced unsigned int by size_t in some places
+	  Added some checks on sizes, makernotes shouldn't
+	  be larger than 64kb.
+
+2008-09-04  Dan Fandrich <dan@coneharvesters.com>
+
+	* po/nl.po: Updated Dutch translation by Erwin Poeze
+
+2008-07-25  Marcus Meissner  <marcus@jet.franken.de>
+
+	* libexif/exif-content.c: Handle realloc to 0 case
+	  correctly. Fixes EOG and GIMP crashes.
+
+2008-06-26  Jan Patera <patera@users.sourceforge.net>
+
+	* libexif/olympus/exif-mnote-data-olympus.c: better support for
+	  MNOTE_OLYMPUS_TAG_FLASHDEVICE/SENSORTEMPERATURE/LENSTEMPERATURE
+
+2008-06-23  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Patch by Mika Raento <mikie@google.com>:
+
+	* libexif/exif-loader.c: (exif_loader_free) Don't forget the logger.
+
+2008-06-15  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* configure.ac: Revert previous commit
+	* po/zh_CN.po: Remove.
+	* po/[sk,vi].po: Revert.
+
+2008-06-15  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* configure.ac: New po-file: zh_CN
+	* po/zh_CN.po: New
+	* po/[sk,vi].po: Updated.
+
+2008-05-06  Marcus Meissner  <meissner@suse.de>
+
+	* libexif/exif-content.c: Fixed a endless loop
+	  possibility in content remove (triggered by EOG
+	  and potentially others on certain JPEGs).
+
+2008-04-03  Dan Fandrich <dan@coneharvesters.com>
+
+	po/sk.po: Updated Slovak translation by Ivan Mas√°r
+
+2008-02-20  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Follow-up on #1774591:
+
+	* libexif/exif-data.c: (exif_data_save_data_content) Remove check for
+	now impossible NULL value.
+
+2008-02-17  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Fix #1865046:
+
+	* COPYING:
+	* libexif/...: Use 'ue' instead of some strange German character.
+
+2008-02-17  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* libexif/exif-loader.c: (exif_loader_get_data) Return NULL if no
+	EXIF data has been found.
+
+2008-02-16  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Jan Patera <patera@pictview.com> spotted a problem with my last fix
+	for #1774591:
+
+	* libexif/exif-content.c: (exif_content_remove_entry) Recover
+	correctly in case of error by remembering the original size of the
+	realloc'ed data.
+	* libexif/exif-data.c: (exif_data_save_data_entry),
+	(exif_data_save_data_content) Same here.
+	* libexif/canon/exif-mnote-data-canon.c:
+	(exif_mnote_data_canon_save), (exif_mnote_data_canon_load) Same here.
+        * libexif/fuji/exif-mnote-data-fuji.c:
+        (exif_mnote_data_fuji_save), (exif_mnote_data_fuji_load) Same here.
+        * libexif/olympus/exif-mnote-data-olympus.c:
+        (exif_mnote_data_olympus_save) Same here.
+
+2008-02-15  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* Changelog
+	* README: use 'ue' instead of some stange German character.
+
+2008-02-14  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Fix #1774591 (partially):
+
+	* libexif/exif-content.c: (exif_content_remove_entry) Check the
+	return value of exif_mem_realloc.
+	* libexif/exif-data.c: (exif_data_save_data_entry), 
+	(exif_data_save_data_content) Same here.
+	* libexif/canon/exif-mnote-data-canon.c:
+	(exif_mnote_data_canon_save), (exif_mnote_data_canon_load) Same here.
+	* libexif/fuji/exif-mnote-data-fuji.c:
+	(exif_mnote_data_fuji_save), (exif_mnote_data_fuji_load) Same here.
+	* libexif/olympus/exif-mnote-data-olympus.c:
+	(exif_mnote_data_olympus_save) Same here.
+
+2008-02-14  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Fix #1884609 (partially):
+
+	* libexif/exif-entry.c: (exif_entry_initialize) Initialize
+	EXIF_TAG_FLASH and EXIF_TAG_COLOR_SPACE.
+
+2007-12-27  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Suggestion by Andreas Kleinert <Andreas_Kleinert@gmx.de>:
+
+	* libexif/exif-entry.c: (exif_entry_get_value) Use %lf for double
+	instead of %f (which is for float).
+
+2007-12-20  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Updated translations by Translation Project Robot
+	<robot@translationproject.org>:
+
+	* po/[vi,pl].po: Updated files.
+
+2007-12-18  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Dan Fandrich <dan@coneharvesters.com> pointed out the following:
+
+	* configure.ac: Keep gettext requirement as low as 0.14.1.
+	gettextize changes it automatically to 0.17, but as long as we don't
+	know why, there is no need to enforce this version.
+
+2007-12-16  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Marcus Meissner <marcus@jet.franken.de> pointed out the following:
+
+	* libexif/exif-data.c: (exif_data_load_data_thumbnail) ExifLong is
+	unsigned. Therefore no need to check for negative values. Check for
+	sane offset instead.
+
+2007-12-15  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* po/*.po: Updated po-files.
+	* libexif/exif-data.c: (exif_data_load_data_thumbnail) guard against 
+	negative size (in addition to negative offset), too.
+
+2007-12-14  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Bug pointed out by Meder Kydyraliev, Google Security Team:
+
+	* libexif/exif-data.c: (exif_data_load_data_thumbnail) Ignore bugus
+	data.
+
+2007-12-14  Lutz Mueller <lutz@users.sourceforge.net>
+
+	* README: Point users to some tools needed to build libexif.
+	* configure.ac: It looks like po/Makefile.in is already registered
+	with AC_CONFIG_FILES (whatever this means).
+
+2007-12-14  Lutz Mueller <lutz@users.sourceforge.net>
+
+	Bug pointed out by Meder Kydyraliev, Google Security Team:
+
+	* libexif/exif-loader.c: (exif_loader_write) Ignore buffers of
+	zero length.
+
+2007-12-07  Jan Patera <patera@users.sourceforge.net>
+
+	* Added support for Fuji makernotes
+
+2007-11-13  Dan Fandrich <dan@coneharvesters.com>
+	* Added support for a new macro NO_VERBOSE_TAG_DATA to allow
+	  some size reduction but still retain the ability to properly
+	  interpret each tag.
+	* Added an end-of-table marker in the Canon color_information
+	  makernote table that could otherwise potentially cause a crash 
+	  on a bad image.
+
+2007-11-12  Dan Fandrich <dan@coneharvesters.com>
+	* Added support for more Olympus makernotes, based on data on
+	  Phil Harvey's ExifTool page at
+	  http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/
+	  and sanity checked by the pel-images in the libexif test suite.
+	* Added support for Sanyo makernotes, which have the identical
+	  tag format and (so it seems) namespace of the Olympus tags.
+
+2007-11-08  Dan Fandrich <dan@coneharvesters.com>
+	* Added Canadian English translation, eh?
+
+2007-11-06  Dan Fandrich <dan@coneharvesters.com>
+	* Renamed EXIF_TAG_UNKNOWN_C4A5 to EXIF_TAG_PRINT_IMAGE_MATCHING
+	  The PIM entry seems to have a format consisting of an 8 byte
+	  magic number, 6 byte version number, 2 byte record count field,
+	  then a series of 6 byte records consisting of a 2 byte tag field
+	  and an 4 byte data field.
+
+2007-10-29  Dan Fandrich <dan@coneharvesters.com>
+	* Fixed some typos in messages
+	* Made some structs const
+	* Support compiling away the detailed tag tables and log messages when
+	  the NO_VERBOSE_TAG_STRINGS macro is defined to reduce the size of
+	  the library for use in embedded applications where space is at
+	  a premium
+	* Display the raw value of a tag when the tag is unknown
+
+2007-09-12  Jan Patera <patera@users.sourceforge.net>
+
+	* Enhancements to Canon makernote parsers submitted by Thorsten Kukuk
+	* Added Dutch and Swedish translations, updated Slovak translation
+
+2007-08-16  Jan Patera <patera@users.sourceforge.net>
+
+	* exif-mnote-data-olympus.c: Fix of bugs #1773810, #1774626, gnome bug #466044:
+	  Some Olympus files have main IFD in MM byte order as well as makernote, but
+	  makernote order was guessed wrongly. Bug introduced when fixing bug #1525770.
+
+2007-06-25  Jan Patera <patera@users.sourceforge.net>
+
+	* Endianess of Nikon V1 makernotes is now guessed, it might not
+	  be the same as of the main IFD
+
 2007-05-21  Jan Patera <patera@users.sourceforge.net>
 
 	* First version of Czech localization (cs.po)
@@ -1028,85 +1769,85 @@
 
 	* libexif/exif-entry.c (exif_entry_get_value): Support USER_COMMENT.
 
-2002-12-31  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-31  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* README: Some information by Sander van Geloven
 	  <svgeloven@zonnet.nl>.
 
-2002-12-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-entry.c (exif_entry_initialize): Fix last commit.
 
-2002-12-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-entry.c (exif_entry_initialize): Support USER_COMMENT.
 	* configure.in: Version 0.5.9
 
-2002-12-09  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-09  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* README: New frontend 'thirdeye'.
 
-2002-12-07  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-07  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.5.8
 
-2002-12-02  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-02  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/Makefile.am: Forgot to remove the some subdirs.
 
-2002-12-02  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-02  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Remove some Makefiles
 
-2002-12-02  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-02  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Reflect removal of exif-note.h in version.
 
-2002-12-02  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-12-02  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-note.[c,h]: Removed. Now in libmnote.
 
-2002-09-16  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-09-16  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif: Some fixes for Windows (Visual C++) by
 	  Andres <aplaza@smalcamera.com>
 
-2002-09-15  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-09-15  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: IRIS fixes by Andrea Suatoni
 	  <a.suatoni@telefonica.net>
 	
-2002-09-15  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-09-15  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in:
 	* po/es.po: Spanish translation by Fabian Mandelbaum
 	  <fabman@2vias.com.ar>
 
-2002-08-30  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-08-30  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-data.c: Some cleanup.
 
-2002-08-29  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-08-29  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Renchi Raju <renchi@pooh.tam.uiuc.edu> found another bug in 
 
 	* libexif/exif-data.c: Correctly save the data.
 	* configure.in: Version 0.5.6.
 
-2002-08-29  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-08-29  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Jason Sodergren <jason@taiga.com> found a lot of bugs in
 
 	* libexif/exif-data.c: Correctly save the data.
 	* configure.in: Version 0.5.5.
 
-2002-08-29  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-08-29  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Another fixes related to #564019:
 
 	* libexif: Make code conform to ISO C standard, section 6.5.2.3.
 
-2002-08-29  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-08-29  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Bug reported by Jason Sodergren <jason@taiga.com>:
 
@@ -1117,7 +1858,7 @@
 	* configure.in: Version 0.5.4dev
 		distinguish release versions from CVS versions
 
-2002-07-25  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-07-25  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-ifd.[c,h]: New.
 	* libexif/exif-data.h: Introduce an array of ExifContents. This 
@@ -1126,95 +1867,95 @@
 	  code to make it compile again.
 	* configure.in: Version 0.5.4.
 
-2002-07-25  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-07-25  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by anonymous user:
 
 	* libexif/exif-[byte-order,format,result,tag].h: Make code comply with
 	  ISO C standard, section 6.5.2.3.
 
-2002-07-25  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-07-25  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Takuro Ashie <makeinu@users.sourceforge.net>:
 
 	* libexif/exif-data.c: Plug memory leak.
 
-2002-07-10  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-07-10  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Bug spotted by Andres <aplaza@smalcamera.com>:
 
 	* libexif/exif-data.c: Save the EXIF_TAG_INTEROPERABILITY_IFD_POINTER
 	  in ifd_exif, not in ifd0.
 
-2002-06-26  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-26  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Jos van den Oever <oever@fenk.wau.nl>: Make libexif c++
 	friendly.
 
-2002-06-14  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-14  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Correct -version-info.
 
-2002-06-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.5.3
 
-2002-06-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/Makefile.am: Oops, missed those konica entries.
 
-2002-06-10  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-10  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.5.2
 
-2002-06-10  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-10  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: We need autoconf > 2.50.
 
-2002-06-09  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-09  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Internationalization.
 
-2002-06-08  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-08  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Guido Ostkamp <guido.ostkamp@t-online.de>
 
 	* libexif/exif-data.c: Increment offset by 12.
 
-2002-06-06  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-06  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Bug spotted by Andres <aplaza@smalcamera.com>:
 
 	* exif-entry.c: Fix typo.
 
-2002-06-05  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-05  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* COPYING: Check the text of the LGPL in, because otherwise, 
 	  automake --add-missing would use the text of the GPL.
 
-2002-06-03  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-06-03  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.5.1
 
-2002-05-01  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-05-01  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Arnaud Rouanet <rouanet@labri.fr>:
 
 	* libexif/exif-entry.c (exif_entry_get_value): Fix typo.
 
-2002-04-30  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-04-30  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Arnaud Rouanet <rouanet@labri.fr>:
 
 	* libexif/exif-entry.c (exif_entry_get_value): Support version 2.2.
 
-2002-04-18  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-04-18  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Marcus Meissner <marcus@jet.franken.de>:
 
 	* libexif/*.h: Make header files c++ friendly.
 
-2002-04-16  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-04-16  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Enhancements by Semyon Sosin <sem@best.com>, adapted:
 
@@ -1222,7 +1963,7 @@
 	* libexif/exif-entry.[c,h] (exif_entry_get_value_brief): New.
 	* README: Add a note about libjpeg.
 
-2002-04-15  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-04-15  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Enhancements by Semyon Sosin <sem@best.com>, adapted:
 
@@ -1234,7 +1975,7 @@
 
 	* Makefile.am: dded .tar.bz2 packaging to "make dist"
 
-2002-03-01  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-03-01  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Mark Pulford <mark@kyne.com.au>:
 
@@ -1242,98 +1983,98 @@
 	* configure.in:
 	* Makefile.am: Create libexif.spec
 
-2002-02-28  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-28  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Javier Achirica <achirica@ttd.net>:
 
 	* libexif/exif-data.c: Fix directory length and termination.
 
-2002-02-28  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-28  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-entry.c (exif_entry_get_value): Add support for
 	  EXIF_TAG_SUBJECT_AREA.
 
-2002-02-28  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-28  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Javier Achirica <achirica@ttd.net>:
 
 	* libexif/exif-tag.[c,h]:
 	* libexif/exif-entry.c: Support EXIF-2.2 tags.
 
-2002-02-25  Lutz M‹ller <lutz@users.sourceforge.net>
+2002-02-25  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch by Basil Dias <basil.dias@wipro.com>:
 
 	* libjpeg/jpeg-data.c: Missing realloc.
 
-2002-02-21  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-21  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/canon: Set up support for parsing MakerNotes.
 
-2002-02-20  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-20  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-data.c:
 	* libjpeg/jpeg-data.c: Read and write "rb" (Windows needs it).
 
-2002-02-18  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-18  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-data.c: Suppress output unless #ifdef DEBUG
 
-2002-02-17  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-17  Lutz Mueller <lutz@users.sourceforge.net>
 
 	Patch from Fredrik <fredrik@krixor.xy.org>:
 
 	* libexif/exif-data.c: Better checks for size.
 
-2002-02-13  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-13  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/configure.in: Introduce proper versionning.
 
-2002-02-13  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-13  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif: There's only one ByteOrder per ExifData.
 
-2002-02-12  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-12  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/exif-entry.c: More initialization.
 
-2002-02-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.5
 
-2002-02-11  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-11  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif/libexif-entry.c: More tags implemented in
 	  (exif_entry_get_value).
 
-2002-02-06  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-06  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.4
 
-2002-02-05  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-05  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.3
 
-2002-02-05  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-02-05  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* libexif: Implement saving.
 
-2002-01-29  Lutz M¸ller <lutz@users.sourceforge.net>
+2002-01-29  Lutz Mueller <lutz@users.sourceforge.net>
 
 	* configure.in: Version 0.2
 
-2002-01-06  Lutz M¸ller <urc8@rz.uni-karlsruhe.de>
+2002-01-06  Lutz Mueller <urc8@rz.uni-karlsruhe.de>
 
 	Merge new stuff from gtkam/libexif.
 
-2001-12-23  Lutz M¸ller <urc8@rz.uni-karlsruhe.de>
+2001-12-23  Lutz Mueller <urc8@rz.uni-karlsruhe.de>
 
 	Merge new stuff from gtkam/libexif.
 
-2001-12-21  Lutz M¸ller <urc8@rz.uni-karlsruhe.de>
+2001-12-21  Lutz Mueller <urc8@rz.uni-karlsruhe.de>
 
 	Move new version from gtkam to here.
 
-2001-12-11  Lutz M¸ller <urc8@rz.uni-karlsruhe.de>
+2001-12-11  Lutz Mueller <urc8@rz.uni-karlsruhe.de>
 
 	Initial automake setup.

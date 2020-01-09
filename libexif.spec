@@ -1,15 +1,12 @@
 Summary: Library for extracting extra information from image files
 Name: libexif
-Version: 0.6.16
-Release: 4.1%{?dist}
+Version: 0.6.21
+Release: 5%{?dist}
 Group: System Environment/Libraries
 License: LGPLv2+
 URL: http://libexif.sourceforge.net/
 Source0: libexif-%{version}.tar.bz2 
 Source1: libexif-docs.tar.gz
-Patch1: cve-2007-6351.patch
-Patch2: cve-2007-6352.patch
-Patch3: olympus-byte-order.patch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n) 
 BuildRequires: doxygen, pkgconfig
 
@@ -30,9 +27,6 @@ for writing programs that use libexif.
 
 %prep
 %setup -q
-%patch1 -p1 -b .cve-2007-6351
-%patch2 -p1 -b .cve-2007-6352
-%patch3 -p1 -b .olympus-byte-order
 
 # to avoid multilib conflicts, we toss in pre-generated docs
 # and neuter make all in the docs dir
@@ -76,6 +70,11 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/libexif.pc
 
 %changelog
+* Thu Sep 06 2012 Richard Hughes <rhughes@redhat.com> - 0.6.21-5
+- Update to version 0.6.21 fixing many bugs and CVEs
+- Remove upstreamed patches
+- Resolves: #839915
+
 * Mon Nov 30 2009 Dennis Gregorovic <dgregor@redhat.com> - 0.6.16-4.1
 - Rebuilt for RHEL 6
 

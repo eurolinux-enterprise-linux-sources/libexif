@@ -1,6 +1,6 @@
 /* exif-loader.c
  *
- * Copyright © 2002 Lutz Müller <lutz@users.sourceforge.net>
+ * Copyright (c) 2002 Lutz Mueller <lutz@users.sourceforge.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,8 +14,8 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301  USA.
  */
 
 #include <config.h>
@@ -24,12 +24,17 @@
 #include <libexif/exif-utils.h>
 #include <libexif/i18n.h>
 
+#include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
+#undef JPEG_MARKER_DHT
+#define JPEG_MARKER_DHT  0xc4
 #undef JPEG_MARKER_SOI
 #define JPEG_MARKER_SOI  0xd8
+#undef JPEG_MARKER_DQT
+#define JPEG_MARKER_DQT  0xdb
 #undef JPEG_MARKER_APP0
 #define JPEG_MARKER_APP0 0xe0
 #undef JPEG_MARKER_APP1
@@ -58,12 +63,15 @@ typedef enum {
 	EL_DATA_FORMAT_FUJI_RAW
 } ExifLoaderDataFormat;
 
+/*! \internal */
 struct _ExifLoader {
 	ExifLoaderState state;
 	ExifLoaderDataFormat data_format;
 
-	/* Small buffer used for detection of format */
+	/*! Small buffer used for detection of format */
 	unsigned char b[12];
+
+	/*! Number of bytes in the small buffer \c b */
 	unsigned char b_len;
 
 	unsigned int size;
@@ -76,6 +84,7 @@ struct _ExifLoader {
 	ExifMem *mem;
 };
 
+/*! Magic number for EXIF header */
 static const unsigned char ExifHeader[] = {0x45, 0x78, 0x69, 0x66, 0x00, 0x00};
 
 static void *
@@ -93,9 +102,6 @@ exif_loader_alloc (ExifLoader *l, unsigned int i)
 	EXIF_LOG_NO_MEMORY (l->log, "ExifLog", i);
 	return NULL;
 }
-
-#undef  MIN
-#define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 
 void
 exif_loader_write_file (ExifLoader *l, const char *path)
@@ -172,10 +178,14 @@ exif_loader_write (ExifLoader *eld, unsigned char *buf, unsigned int len)
 			break;
 		}
 		break;
+
+	case EL_READ:
 	default:
 		break;
 	}
 
+	if (!len)
+		return 1;
 	exif_log (eld->log, EXIF_LOG_CODE_DEBUG, "ExifLoader",
 		  "Scanning %i byte(s) of data...", len);
 
@@ -263,7 +273,7 @@ exif_loader_write (ExifLoader *eld, unsigned char *buf, unsigned int len)
 		default:
 			switch (eld->b[i]) {
 			case JPEG_MARKER_APP1:
-				if (!memcmp (eld->b + i + 3, ExifHeader, MIN(sizeof (ExifHeader), MAX(0, sizeof (eld->b) - i - 3)))) {
+			  if (!memcmp (eld->b + i + 3, ExifHeader, MIN((ssize_t)(sizeof(ExifHeader)), MAX(0, ((ssize_t)(sizeof(eld->b))) - ((ssize_t)i) - 3)))) {
 					eld->data_format = EL_DATA_FORMAT_EXIF;
 				} else {
 					eld->data_format = EL_DATA_FORMAT_JPEG; /* Probably JFIF - keep searching for APP1 EXIF*/
@@ -271,6 +281,8 @@ exif_loader_write (ExifLoader *eld, unsigned char *buf, unsigned int len)
 				eld->size = 0;
 				eld->state = EL_READ_SIZE_BYTE_08;
 				break;
+			case JPEG_MARKER_DHT:
+			case JPEG_MARKER_DQT:
 			case JPEG_MARKER_APP0:
 			case JPEG_MARKER_APP2:
 			case JPEG_MARKER_APP13:
@@ -348,6 +360,7 @@ exif_loader_free (ExifLoader *loader)
 
 	mem = loader->mem;
 	exif_loader_reset (loader);
+	exif_log_unref (loader->log);
 	exif_mem_free (mem, loader);
 	exif_mem_unref (mem);
 }
@@ -379,7 +392,8 @@ exif_loader_get_data (ExifLoader *loader)
 {
 	ExifData *ed;
 
-	if (!loader) 
+	if (!loader || (loader->data_format == EL_DATA_FORMAT_UNKNOWN) ||
+	    !loader->bytes_read)
 		return NULL;
 
 	ed = exif_data_new_mem (loader->mem);
@@ -387,6 +401,26 @@ exif_loader_get_data (ExifLoader *loader)
 	exif_data_load_data (ed, loader->buf, loader->bytes_read);
 
 	return ed;
+}
+
+void
+exif_loader_get_buf (ExifLoader *loader, const unsigned char **buf,
+						  unsigned int *buf_size)
+{
+	const unsigned char* b = NULL;
+	unsigned int s = 0;
+
+	if (!loader || (loader->data_format == EL_DATA_FORMAT_UNKNOWN)) {
+		exif_log (loader->log, EXIF_LOG_CODE_DEBUG, "ExifLoader",
+			  "Loader format unknown");
+	} else {
+		b = loader->buf;
+		s = loader->bytes_read;
+	}
+	if (buf)
+		*buf = b;
+	if (buf_size)
+		*buf_size = s;
 }
 
 void

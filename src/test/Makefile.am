@@ -10,12 +10,12 @@ SUBDIRS = nls
 #      And this is just the lib - we don't have the program available
 #      here yet.
 
-TESTS = test-mem test-value test-integers
+TESTS = test-mem test-value test-integers test-parse test-tagtable test-sorted
 
-check_PROGRAMS = test-mem test-mnote test-value test-integers
+TEST_IMAGES = $(top_srcdir)/daniel-andrews-sample.jpg
+export TEST_IMAGES
 
-test_mem_LDADD   = $(top_builddir)/libexif/libexif.la $(LTLIBINTL)
+check_PROGRAMS = test-mem test-mnote test-value test-integers test-parse \
+	test-tagtable test-sorted
 
-test_mnote_LDADD = $(top_builddir)/libexif/libexif.la $(LTLIBINTL)
-
-test_value_LDADD = $(top_builddir)/libexif/libexif.la $(LTLIBINTL)
+LDADD = $(top_builddir)/libexif/libexif.la $(LTLIBINTL)
