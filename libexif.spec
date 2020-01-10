@@ -1,7 +1,7 @@
 Summary:	Library for extracting extra information from image files
 Name:		libexif
 Version:	0.6.21
-Release:	4%{?dist}
+Release:	6%{?dist}
 Group:		System Environment/Libraries
 License:	LGPLv2+
 URL:		http://libexif.sourceforge.net/
@@ -70,6 +70,12 @@ iconv -f latin1 -t utf-8 < README > README.utf8; cp README.utf8 README
 %doc libexif-api.html
 
 %changelog
+* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.6.21-6
+- Mass rebuild 2014-01-24
+
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 0.6.21-5
+- Mass rebuild 2013-12-27
+
 * Wed Mar 27 2013 Petr Šabata <contyk@redhat.com> - 0.6.21-4
 - Run autoreconf for aarch64
 
